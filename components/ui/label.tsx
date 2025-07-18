@@ -10,7 +10,7 @@ export function Label({ className, ...props }: React.ComponentProps<"label">) {
     <label
       data-slot="label"
       className={cn(
-        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 gumroad:text-lg gumroad:font-semibold linear:text-base linear:font-medium linear:rounded-none",
+        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 gumroad:text-lg gumroad:font-semibold linear:text-base linear:font-medium linear:rounded-none linear:!rounded-none",
         className
       )}
       {...props}

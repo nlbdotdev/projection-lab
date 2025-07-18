@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { cva } from "class-variance-authority"
 
 const cardVariants = cva(
-  "rounded-xl border bg-card text-card-foreground shadow gumroad:rounded-2xl gumroad:shadow-lg gumroad:border-[--border] linear:rounded-none linear:shadow-lg linear:border-[--border]",
+  "rounded-xl border bg-card text-card-foreground shadow gumroad:rounded-2xl gumroad:shadow-lg gumroad:border-[--border] linear:rounded-none linear:shadow-lg linear:border-[--border] linear:!rounded-none",
   {
     variants: {
       variant: {
