@@ -39,6 +39,8 @@ export default function FinancialForecastingApp() {
   const [title, setTitle] = useState("");
   const [monthlyRevenue, setMonthlyRevenue] = useState("");
   const [monthlyExpenses, setMonthlyExpenses] = useState("");
+  const [revenueAPR, setRevenueAPR] = useState("");
+  const [expenseAPR, setExpenseAPR] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("1yr");
   const [forecastData, setForecastData] = useState<ForecastDataPoint[]>([]);
 
@@ -47,11 +49,15 @@ export default function FinancialForecastingApp() {
     const urlTitle = searchParams.get("title");
     const urlRevenue = searchParams.get("revenue") || searchParams.get("income"); // Backward compatibility
     const urlExpenses = searchParams.get("expenses");
+    const urlRevenueAPR = searchParams.get("revenueAPR");
+    const urlExpenseAPR = searchParams.get("expenseAPR");
     const urlPeriod = searchParams.get("period");
 
     if (urlTitle) setTitle(urlTitle);
     if (urlRevenue) setMonthlyRevenue(urlRevenue);
     if (urlExpenses) setMonthlyExpenses(urlExpenses);
+    if (urlRevenueAPR) setRevenueAPR(urlRevenueAPR);
+    if (urlExpenseAPR) setExpenseAPR(urlExpenseAPR);
     if (urlPeriod) setSelectedPeriod(urlPeriod);
   }, [searchParams]);
 
@@ -61,27 +67,38 @@ export default function FinancialForecastingApp() {
     if (title) params.set("title", title);
     if (monthlyRevenue) params.set("revenue", monthlyRevenue);
     if (monthlyExpenses) params.set("expenses", monthlyExpenses);
+    if (revenueAPR) params.set("revenueAPR", revenueAPR);
+    if (expenseAPR) params.set("expenseAPR", expenseAPR);
     if (selectedPeriod) params.set("period", selectedPeriod);
     
     router.replace(`?${params.toString()}`, { scroll: false });
-  }, [title, monthlyRevenue, monthlyExpenses, selectedPeriod, router]);
+  }, [title, monthlyRevenue, monthlyExpenses, revenueAPR, expenseAPR, selectedPeriod, router]);
 
   // Calculate forecast data
   useEffect(() => {
     if (monthlyRevenue && monthlyExpenses) {
-      const revenue = parseFloat(monthlyRevenue) || 0;
-      const expenses = parseFloat(monthlyExpenses) || 0;
-      const netSavings = revenue - expenses;
+      const baseRevenue = parseFloat(monthlyRevenue) || 0;
+      const baseExpenses = parseFloat(monthlyExpenses) || 0;
+      const revenueInterestRate = (parseFloat(revenueAPR) || 0) / 12 / 100; // Monthly rate
+      const expenseInterestRate = (parseFloat(expenseAPR) || 0) / 12 / 100; // Monthly rate
       const period = TIME_PERIODS.find(p => p.value === selectedPeriod);
       
       if (period) {
         const data = [];
         let cumulativeRevenue = 0;
         let cumulativeExpenses = 0;
+        let currentMonthlyRevenue = baseRevenue;
+        let currentMonthlyExpenses = baseExpenses;
         
         for (let month = 0; month <= period.months; month++) {
-          cumulativeRevenue += revenue;
-          cumulativeExpenses += expenses;
+          // Apply interest growth to monthly amounts
+          if (month > 0) {
+            currentMonthlyRevenue *= (1 + revenueInterestRate);
+            currentMonthlyExpenses *= (1 + expenseInterestRate);
+          }
+          
+          cumulativeRevenue += currentMonthlyRevenue;
+          cumulativeExpenses += currentMonthlyExpenses;
           
           const date = new Date();
           date.setMonth(date.getMonth() + month);
@@ -105,7 +122,7 @@ export default function FinancialForecastingApp() {
         setForecastData(data);
       }
     }
-  }, [monthlyRevenue, monthlyExpenses, selectedPeriod]);
+  }, [monthlyRevenue, monthlyExpenses, revenueAPR, expenseAPR, selectedPeriod]);
 
   const currentPeriod = TIME_PERIODS.find(p => p.value === selectedPeriod);
   const finalProjection = forecastData[forecastData.length - 1];
@@ -122,23 +139,26 @@ export default function FinancialForecastingApp() {
         </div>
 
         {/* Controls */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Forecast Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  placeholder="My Financial Plan"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              
-                             <div className="space-y-2">
+                 <Card>
+           <CardHeader>
+             <CardTitle>Forecast Settings</CardTitle>
+             <p className="text-sm text-muted-foreground">
+               Interest rates are optional and represent annual growth (revenue) or inflation (expenses)
+             </p>
+           </CardHeader>
+           <CardContent className="space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+               <div className="space-y-2">
+                 <Label htmlFor="title">Title</Label>
+                 <Input
+                   id="title"
+                   placeholder="My Financial Plan"
+                   value={title}
+                   onChange={(e) => setTitle(e.target.value)}
+                 />
+               </div>
+               
+               <div className="space-y-2">
                  <Label htmlFor="revenue">Monthly Revenue ($)</Label>
                  <Input
                    id="revenue"
@@ -148,36 +168,60 @@ export default function FinancialForecastingApp() {
                    onChange={(e) => setMonthlyRevenue(e.target.value)}
                  />
                </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="expenses">Monthly Expenses ($)</Label>
-                <Input
-                  id="expenses"
-                  type="number"
-                  placeholder="3000"
-                  value={monthlyExpenses}
-                  onChange={(e) => setMonthlyExpenses(e.target.value)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="period">Time Period</Label>
-                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_PERIODS.map((period) => (
-                      <SelectItem key={period.value} value={period.value}>
-                        {period.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+               
+               <div className="space-y-2">
+                 <Label htmlFor="revenueAPR">Revenue APR (%)</Label>
+                 <Input
+                   id="revenueAPR"
+                   type="number"
+                   step="0.1"
+                   placeholder="3.0"
+                   value={revenueAPR}
+                   onChange={(e) => setRevenueAPR(e.target.value)}
+                 />
+               </div>
+               
+               <div className="space-y-2">
+                 <Label htmlFor="expenses">Monthly Expenses ($)</Label>
+                 <Input
+                   id="expenses"
+                   type="number"
+                   placeholder="3000"
+                   value={monthlyExpenses}
+                   onChange={(e) => setMonthlyExpenses(e.target.value)}
+                 />
+               </div>
+               
+               <div className="space-y-2">
+                 <Label htmlFor="expenseAPR">Expense APR (%)</Label>
+                 <Input
+                   id="expenseAPR"
+                   type="number"
+                   step="0.1"
+                   placeholder="2.5"
+                   value={expenseAPR}
+                   onChange={(e) => setExpenseAPR(e.target.value)}
+                 />
+               </div>
+               
+               <div className="space-y-2">
+                 <Label htmlFor="period">Time Period</Label>
+                 <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                   <SelectTrigger>
+                     <SelectValue placeholder="Select period" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {TIME_PERIODS.map((period) => (
+                       <SelectItem key={period.value} value={period.value}>
+                         {period.label}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
+             </div>
+           </CardContent>
+         </Card>
 
         {/* Chart */}
         {forecastData.length > 0 && (
@@ -313,6 +357,9 @@ export default function FinancialForecastingApp() {
              <CardContent className="text-center py-8">
                <p className="text-muted-foreground">
                  Enter your monthly revenue and expenses to see your financial forecast
+               </p>
+               <p className="text-sm text-muted-foreground mt-2">
+                 Optional: Add interest rates to model growth or inflation over time
                </p>
              </CardContent>
            </Card>
