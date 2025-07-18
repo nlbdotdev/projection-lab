@@ -163,6 +163,7 @@ function FinancialForecastingApp() {
 
 	return (
 		<div className="min-h-screen bg-background p-4">
+			{/* Main UI */}
 			<div className="max-w-6xl mx-auto space-y-6">
 				{/* Header */}
 				<div className="text-center space-y-2">
@@ -263,7 +264,7 @@ function FinancialForecastingApp() {
 
 				{/* Chart */}
 				{forecastData.length > 0 && (
-					<Card>
+					<Card className="forecast-pdf-area">
 						<CardHeader>
 							<CardTitle>
 								{title || "Financial Forecast"} - {currentPeriod?.label}
