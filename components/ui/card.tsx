@@ -1,6 +1,21 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { cva } from "class-variance-authority"
+
+const cardVariants = cva(
+  "rounded-xl border bg-card text-card-foreground shadow gumroad:rounded-2xl gumroad:shadow-lg gumroad:border-[--border] linear:rounded-none linear:shadow-lg linear:border-[--border]",
+  {
+    variants: {
+      variant: {
+        default: "",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (

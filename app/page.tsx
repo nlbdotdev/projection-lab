@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/chart"
 import { Area, AreaChart, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ExtrasMenu } from "@/components/extras-menu"
 
 // Available time periods for financial forecasting
 const TIME_PERIODS = [
@@ -161,8 +162,19 @@ function FinancialForecastingApp() {
 	const currentPeriod = TIME_PERIODS.find((p) => p.value === selectedPeriod)
 	const finalProjection = forecastData[forecastData.length - 1]
 
+	// Theme switching handler
+	const handleThemeChange = (theme: string) => {
+		const html = document.documentElement
+		html.classList.remove("gumroad", "linear", "notion")
+		if (theme === "gumroad") html.classList.add("gumroad")
+		else if (theme === "linear") html.classList.add("linear")
+		else if (theme === "notion") html.classList.add("notion")
+		// Default: no extra class
+	}
+
 	return (
 		<div className="min-h-screen bg-background p-4">
+			<ExtrasMenu onThemeChange={handleThemeChange} />
 			{/* Main UI */}
 			<div className="max-w-6xl mx-auto space-y-6">
 				{/* Header */}

@@ -1,24 +1,23 @@
 "use client"
 
 import * as React from "react"
-import { MoreVertical } from "lucide-react"
+import { MoreVertical, Palette } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 
 interface ExtrasMenuProps {
-  onExportPDF: () => void
+  onThemeChange?: (theme: string) => void
 }
 
-/**
- * ExtrasMenu - Floating top-right button for extra actions
- * Currently supports exporting the forecast as PDF.
- */
-export function ExtrasMenu({ onExportPDF }: ExtrasMenuProps) {
+export function ExtrasMenu({ onThemeChange }: ExtrasMenuProps) {
   return (
     <div className="fixed top-4 right-4 z-50">
       <DropdownMenu>
@@ -29,9 +28,17 @@ export function ExtrasMenu({ onExportPDF }: ExtrasMenuProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onExportPDF}>
-            Export as PDF
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Palette className="mr-2 h-4 w-4" /> Theme
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={() => onThemeChange && onThemeChange("default")}>Default</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onThemeChange && onThemeChange("gumroad")}>Gumroad</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onThemeChange && onThemeChange("linear")}>Linear</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onThemeChange && onThemeChange("notion")}>Notion</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
