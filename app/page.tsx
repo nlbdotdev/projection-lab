@@ -69,6 +69,7 @@ function FinancialForecastingApp() {
 	const [selectedPeriod, setSelectedPeriod] = useState("1yr")
 	const [forecastData, setForecastData] = useState<ForecastDataPoint[]>([])
 	const [isCopied, setIsCopied] = useState(false)
+	const [isSharedView, setIsSharedView] = useState(false)
 
 	// Load state from URL parameters
 	useEffect(() => {
@@ -79,6 +80,7 @@ function FinancialForecastingApp() {
 		const urlRevenueAPR = searchParams.get("revenueAPR")
 		const urlExpenseAPR = searchParams.get("expenseAPR")
 		const urlPeriod = searchParams.get("period")
+		const urlShared = searchParams.get("shared")
 
 		if (urlTitle) setTitle(urlTitle)
 		if (urlStartingAmount) setStartingAmount(urlStartingAmount)
@@ -87,6 +89,7 @@ function FinancialForecastingApp() {
 		if (urlRevenueAPR) setRevenueAPR(urlRevenueAPR)
 		if (urlExpenseAPR) setExpenseAPR(urlExpenseAPR)
 		if (urlPeriod) setSelectedPeriod(urlPeriod)
+		if (urlShared === "true") setIsSharedView(true)
 	}, [searchParams])
 
 	// Update URL parameters when state changes
@@ -111,6 +114,15 @@ function FinancialForecastingApp() {
 		selectedPeriod,
 		router,
 	])
+
+	// Update document title when in shared view
+	useEffect(() => {
+		if (isSharedView && title) {
+			document.title = title
+		} else if (!isSharedView) {
+			document.title = "Financial Forecasting Lab"
+		}
+	}, [isSharedView, title])
 
 	// Calculate forecast data with compound interest
 	useEffect(() => {
@@ -209,10 +221,24 @@ function FinancialForecastingApp() {
 	// Handle share button click
 	const handleShare = async () => {
 		try {
-			const url = window.location.href
-			await navigator.clipboard.writeText(url)
+			// Build URL with shared parameter
+			const params = new URLSearchParams()
+			if (title) params.set("title", title)
+			if (startingAmount) params.set("startingAmount", startingAmount)
+			if (monthlyRevenue) params.set("revenue", monthlyRevenue)
+			if (monthlyExpenses) params.set("expenses", monthlyExpenses)
+			if (revenueAPR) params.set("revenueAPR", revenueAPR)
+			if (expenseAPR) params.set("expenseAPR", expenseAPR)
+			if (selectedPeriod) params.set("period", selectedPeriod)
+			params.set("shared", "true")
+			
+			const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`
+			await navigator.clipboard.writeText(shareUrl)
 			setIsCopied(true)
 			toast.success("Copied URL to clipboard!")
+			
+			// Navigate to shared view
+			router.push(`?${params.toString()}`)
 			
 			// Reset the copied state after 2 seconds
 			setTimeout(() => {
@@ -221,6 +247,20 @@ function FinancialForecastingApp() {
 		} catch (err) {
 			toast.error("Failed to copy URL")
 		}
+	}
+
+	// Handle edit button click (exit shared view)
+	const handleEdit = () => {
+		setIsSharedView(false)
+		const params = new URLSearchParams()
+		if (title) params.set("title", title)
+		if (startingAmount) params.set("startingAmount", startingAmount)
+		if (monthlyRevenue) params.set("revenue", monthlyRevenue)
+		if (monthlyExpenses) params.set("expenses", monthlyExpenses)
+		if (revenueAPR) params.set("revenueAPR", revenueAPR)
+		if (expenseAPR) params.set("expenseAPR", expenseAPR)
+		if (selectedPeriod) params.set("period", selectedPeriod)
+		router.push(`?${params.toString()}`)
 	}
 
 	return (
@@ -236,36 +276,19 @@ function FinancialForecastingApp() {
 				</div>
 
 				{/* Controls */}
-				<Card>
-					<CardHeader>
-						<div className="flex items-start justify-between">
-							<div className="space-y-1.5">
-								<CardTitle>Forecast Settings</CardTitle>
-								<p className="text-sm text-muted-foreground">
-									Interest rates are optional and represent annual growth (revenue)
-									or inflation (expenses)
-								</p>
-							</div>
-							<Button
-								onClick={handleShare}
-								variant="outline"
-								size="sm"
-								className="shrink-0 transition-all"
-							>
-								{isCopied ? (
-									<>
-										<Check className="h-4 w-4 mr-2" />
-										Copied!
-									</>
-								) : (
-									<>
-										<Share2 className="h-4 w-4 mr-2" />
-										Share
-									</>
-								)}
-							</Button>
-						</div>
-					</CardHeader>
+				<div
+					className={`transition-all duration-300 ease-in-out overflow-hidden ${
+						isSharedView ? "max-h-0 opacity-0" : "max-h-[2000px] opacity-100"
+					}`}
+				>
+					<Card>
+						<CardHeader>
+							<CardTitle>Forecast Settings</CardTitle>
+							<p className="text-sm text-muted-foreground">
+								Interest rates are optional and represent annual growth (revenue)
+								or inflation (expenses)
+							</p>
+						</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
 							<div className="space-y-2">
@@ -356,14 +379,46 @@ function FinancialForecastingApp() {
 						</div>
 					</CardContent>
 				</Card>
+				</div>
 
 				{/* Chart */}
 				{forecastData.length > 0 && (
 					<Card className="forecast-pdf-area">
 						<CardHeader>
-							<CardTitle>
-								{title || "Financial Forecast"} - {currentPeriod?.label}
-							</CardTitle>
+							<div className="flex items-start justify-between">
+								<CardTitle>
+									{title || "Financial Forecast"} - {currentPeriod?.label}
+								</CardTitle>
+								{isSharedView ? (
+									<Button
+										onClick={handleEdit}
+										variant="outline"
+										size="sm"
+										className="shrink-0"
+									>
+										Edit
+									</Button>
+								) : (
+									<Button
+										onClick={handleShare}
+										variant="outline"
+										size="sm"
+										className="shrink-0 transition-all"
+									>
+										{isCopied ? (
+											<>
+												<Check className="h-4 w-4 mr-2" />
+												Copied!
+											</>
+										) : (
+											<>
+												<Share2 className="h-4 w-4 mr-2" />
+												Share
+											</>
+										)}
+									</Button>
+								)}
+							</div>
 							{finalProjection && (
 								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
 									<div className="space-y-1">

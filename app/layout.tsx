@@ -17,7 +17,10 @@ const geistMono = Geist_Mono({
 
 // Application metadata
 export const metadata: Metadata = {
-	title: "Financial Forecasting Lab",
+	title: {
+		template: "%s - Financial Forecasting Lab",
+		default: "Financial Forecasting Lab",
+	},
 	description: "A lite web app for financial forecasting and projections",
 }
 
