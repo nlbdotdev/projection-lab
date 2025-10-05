@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import {
 	Select,
 	SelectContent,
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/chart"
 import { Area, AreaChart, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Share2, Check } from "lucide-react"
+import { toast } from "sonner"
 
 // Available time periods for financial forecasting
 const TIME_PERIODS = [
@@ -65,6 +68,7 @@ function FinancialForecastingApp() {
 	const [expenseAPR, setExpenseAPR] = useState("")
 	const [selectedPeriod, setSelectedPeriod] = useState("1yr")
 	const [forecastData, setForecastData] = useState<ForecastDataPoint[]>([])
+	const [isCopied, setIsCopied] = useState(false)
 
 	// Load state from URL parameters
 	useEffect(() => {
@@ -202,6 +206,23 @@ function FinancialForecastingApp() {
 
 	const milestoneInfo = calculateMilestoneDate()
 
+	// Handle share button click
+	const handleShare = async () => {
+		try {
+			const url = window.location.href
+			await navigator.clipboard.writeText(url)
+			setIsCopied(true)
+			toast.success("Copied URL to clipboard!")
+			
+			// Reset the copied state after 2 seconds
+			setTimeout(() => {
+				setIsCopied(false)
+			}, 2000)
+		} catch (err) {
+			toast.error("Failed to copy URL")
+		}
+	}
+
 	return (
 		<div className="min-h-screen bg-background p-4">
 			{/* Main UI */}
@@ -217,11 +238,33 @@ function FinancialForecastingApp() {
 				{/* Controls */}
 				<Card>
 					<CardHeader>
-						<CardTitle>Forecast Settings</CardTitle>
-						<p className="text-sm text-muted-foreground">
-							Interest rates are optional and represent annual growth (revenue)
-							or inflation (expenses)
-						</p>
+						<div className="flex items-start justify-between">
+							<div className="space-y-1.5">
+								<CardTitle>Forecast Settings</CardTitle>
+								<p className="text-sm text-muted-foreground">
+									Interest rates are optional and represent annual growth (revenue)
+									or inflation (expenses)
+								</p>
+							</div>
+							<Button
+								onClick={handleShare}
+								variant="outline"
+								size="sm"
+								className="shrink-0 transition-all"
+							>
+								{isCopied ? (
+									<>
+										<Check className="h-4 w-4 mr-2" />
+										Copied!
+									</>
+								) : (
+									<>
+										<Share2 className="h-4 w-4 mr-2" />
+										Share
+									</>
+								)}
+							</Button>
+						</div>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
