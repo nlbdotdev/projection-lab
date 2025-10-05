@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import {
 	Select,
 	SelectContent,
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/chart"
 import { Area, AreaChart, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Share2, Check } from "lucide-react"
+import { toast } from "sonner"
 
 // Available time periods for financial forecasting
 const TIME_PERIODS = [
@@ -58,16 +61,19 @@ function FinancialForecastingApp() {
 	const router = useRouter()
 
 	const [title, setTitle] = useState("")
+	const [startingAmount, setStartingAmount] = useState("")
 	const [monthlyRevenue, setMonthlyRevenue] = useState("")
 	const [monthlyExpenses, setMonthlyExpenses] = useState("")
 	const [revenueAPR, setRevenueAPR] = useState("")
 	const [expenseAPR, setExpenseAPR] = useState("")
 	const [selectedPeriod, setSelectedPeriod] = useState("1yr")
 	const [forecastData, setForecastData] = useState<ForecastDataPoint[]>([])
+	const [isCopied, setIsCopied] = useState(false)
 
 	// Load state from URL parameters
 	useEffect(() => {
 		const urlTitle = searchParams.get("title")
+		const urlStartingAmount = searchParams.get("startingAmount")
 		const urlRevenue = searchParams.get("revenue") || searchParams.get("income") // Backward compatibility
 		const urlExpenses = searchParams.get("expenses")
 		const urlRevenueAPR = searchParams.get("revenueAPR")
@@ -75,6 +81,7 @@ function FinancialForecastingApp() {
 		const urlPeriod = searchParams.get("period")
 
 		if (urlTitle) setTitle(urlTitle)
+		if (urlStartingAmount) setStartingAmount(urlStartingAmount)
 		if (urlRevenue) setMonthlyRevenue(urlRevenue)
 		if (urlExpenses) setMonthlyExpenses(urlExpenses)
 		if (urlRevenueAPR) setRevenueAPR(urlRevenueAPR)
@@ -86,6 +93,7 @@ function FinancialForecastingApp() {
 	useEffect(() => {
 		const params = new URLSearchParams()
 		if (title) params.set("title", title)
+		if (startingAmount) params.set("startingAmount", startingAmount)
 		if (monthlyRevenue) params.set("revenue", monthlyRevenue)
 		if (monthlyExpenses) params.set("expenses", monthlyExpenses)
 		if (revenueAPR) params.set("revenueAPR", revenueAPR)
@@ -95,6 +103,7 @@ function FinancialForecastingApp() {
 		router.replace(`?${params.toString()}`, { scroll: false })
 	}, [
 		title,
+		startingAmount,
 		monthlyRevenue,
 		monthlyExpenses,
 		revenueAPR,
@@ -108,6 +117,7 @@ function FinancialForecastingApp() {
 		if (monthlyRevenue && monthlyExpenses) {
 			const baseRevenue = parseFloat(monthlyRevenue) || 0
 			const baseExpenses = parseFloat(monthlyExpenses) || 0
+			const initialAmount = parseFloat(startingAmount) || 0
 			// Convert annual percentage rates to monthly decimal rates
 			const revenueInterestRate = (parseFloat(revenueAPR) || 0) / 12 / 100
 			const expenseInterestRate = (parseFloat(expenseAPR) || 0) / 12 / 100
@@ -137,6 +147,7 @@ function FinancialForecastingApp() {
 					date.setMonth(date.getMonth() + month)
 
 					const cumulativeProfit = cumulativeRevenue - cumulativeExpenses
+					const currentNetWorth = initialAmount + cumulativeProfit
 
 					data.push({
 						month,
@@ -149,17 +160,68 @@ function FinancialForecastingApp() {
 						revenue: cumulativeRevenue,
 						expenses: -cumulativeExpenses, // Negative for display below x-axis
 						profit: cumulativeProfit,
-						netWorth: cumulativeRevenue - cumulativeExpenses,
+						netWorth: currentNetWorth,
 					})
 				}
 
 				setForecastData(data)
 			}
 		}
-	}, [monthlyRevenue, monthlyExpenses, revenueAPR, expenseAPR, selectedPeriod])
+	}, [monthlyRevenue, monthlyExpenses, revenueAPR, expenseAPR, selectedPeriod, startingAmount])
 
 	const currentPeriod = TIME_PERIODS.find((p) => p.value === selectedPeriod)
 	const finalProjection = forecastData[forecastData.length - 1]
+
+	// Calculate Break Even or Runway Ended date
+	const calculateMilestoneDate = () => {
+		if (forecastData.length === 0) return null
+
+		const initialAmount = parseFloat(startingAmount) || 0
+		const isPositiveTrend = finalProjection && finalProjection.netWorth > initialAmount
+
+		if (isPositiveTrend) {
+			// Look for break even point (net worth crosses zero from negative)
+			if (initialAmount >= 0) {
+				return { type: "positive", date: null } // Already positive
+			}
+			for (let i = 0; i < forecastData.length; i++) {
+				if (forecastData[i].netWorth >= 0) {
+					return { type: "breakEven", date: forecastData[i].date }
+				}
+			}
+			return { type: "breakEven", date: null } // Will break even after forecast period
+		} else {
+			// Look for runway ended point (net worth crosses zero from positive)
+			if (initialAmount <= 0) {
+				return { type: "negative", date: null } // Already negative
+			}
+			for (let i = 0; i < forecastData.length; i++) {
+				if (forecastData[i].netWorth <= 0) {
+					return { type: "runwayEnded", date: forecastData[i].date }
+				}
+			}
+			return { type: "runwayEnded", date: null } // Won't run out in forecast period
+		}
+	}
+
+	const milestoneInfo = calculateMilestoneDate()
+
+	// Handle share button click
+	const handleShare = async () => {
+		try {
+			const url = window.location.href
+			await navigator.clipboard.writeText(url)
+			setIsCopied(true)
+			toast.success("Copied URL to clipboard!")
+			
+			// Reset the copied state after 2 seconds
+			setTimeout(() => {
+				setIsCopied(false)
+			}, 2000)
+		} catch (err) {
+			toast.error("Failed to copy URL")
+		}
+	}
 
 	return (
 		<div className="min-h-screen bg-background p-4">
@@ -176,14 +238,36 @@ function FinancialForecastingApp() {
 				{/* Controls */}
 				<Card>
 					<CardHeader>
-						<CardTitle>Forecast Settings</CardTitle>
-						<p className="text-sm text-muted-foreground">
-							Interest rates are optional and represent annual growth (revenue)
-							or inflation (expenses)
-						</p>
+						<div className="flex items-start justify-between">
+							<div className="space-y-1.5">
+								<CardTitle>Forecast Settings</CardTitle>
+								<p className="text-sm text-muted-foreground">
+									Interest rates are optional and represent annual growth (revenue)
+									or inflation (expenses)
+								</p>
+							</div>
+							<Button
+								onClick={handleShare}
+								variant="outline"
+								size="sm"
+								className="shrink-0 transition-all"
+							>
+								{isCopied ? (
+									<>
+										<Check className="h-4 w-4 mr-2" />
+										Copied!
+									</>
+								) : (
+									<>
+										<Share2 className="h-4 w-4 mr-2" />
+										Share
+									</>
+								)}
+							</Button>
+						</div>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
 							<div className="space-y-2">
 								<Label htmlFor="title">Title</Label>
 								<Input
@@ -191,6 +275,17 @@ function FinancialForecastingApp() {
 									placeholder="My Financial Plan"
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
+								/>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="startingAmount">Starting Amount ($)</Label>
+								<Input
+									id="startingAmount"
+									type="number"
+									placeholder="10000"
+									value={startingAmount}
+									onChange={(e) => setStartingAmount(e.target.value)}
 								/>
 							</div>
 
@@ -270,7 +365,7 @@ function FinancialForecastingApp() {
 								{title || "Financial Forecast"} - {currentPeriod?.label}
 							</CardTitle>
 							{finalProjection && (
-								<div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
 									<div className="space-y-1">
 										<p className="text-muted-foreground">Total Revenue</p>
 										<p className="text-2xl font-bold text-green-600">
@@ -299,6 +394,26 @@ function FinancialForecastingApp() {
 											${finalProjection.netWorth.toLocaleString()}
 										</p>
 									</div>
+									{milestoneInfo && (
+										<div className="space-y-1">
+											<p className="text-muted-foreground">
+												{milestoneInfo.type === "breakEven" ? "Break Even" : 
+												 milestoneInfo.type === "runwayEnded" ? "Runway Ended" :
+												 milestoneInfo.type === "positive" ? "Status" : "Status"}
+											</p>
+											<p className={`text-2xl font-bold ${
+												milestoneInfo.type === "breakEven" ? "text-green-600" :
+												milestoneInfo.type === "runwayEnded" ? "text-red-600" :
+												milestoneInfo.type === "positive" ? "text-green-600" : "text-gray-600"
+											}`}>
+												{milestoneInfo.date ? milestoneInfo.date : 
+												 milestoneInfo.type === "positive" ? "Profitable" :
+												 milestoneInfo.type === "negative" ? "In Deficit" :
+												 milestoneInfo.type === "breakEven" ? "Beyond Forecast" :
+												 "Beyond Forecast"}
+											</p>
+										</div>
+									)}
 								</div>
 							)}
 						</CardHeader>
@@ -316,6 +431,10 @@ function FinancialForecastingApp() {
 									profit: {
 										label: "Profit",
 										color: "hsl(220, 90%, 56%)",
+									},
+									netWorth: {
+										label: "Net Worth",
+										color: "hsl(280, 70%, 50%)",
 									},
 								}}
 								className="h-96 w-full"
@@ -374,6 +493,24 @@ function FinancialForecastingApp() {
 												<stop
 													offset="95%"
 													stopColor="hsl(220, 90%, 56%)"
+													stopOpacity={0.1}
+												/>
+											</linearGradient>
+											<linearGradient
+												id="netWorthGradient"
+												x1="0"
+												y1="0"
+												x2="0"
+												y2="1"
+											>
+												<stop
+													offset="5%"
+													stopColor="hsl(280, 70%, 50%)"
+													stopOpacity={0.3}
+												/>
+												<stop
+													offset="95%"
+													stopColor="hsl(280, 70%, 50%)"
 													stopOpacity={0.1}
 												/>
 											</linearGradient>
@@ -440,6 +577,13 @@ function FinancialForecastingApp() {
 											stroke="hsl(220, 90%, 56%)"
 											strokeWidth={2}
 											fill="url(#profitGradient)"
+										/>
+										<Area
+											type="monotone"
+											dataKey="netWorth"
+											stroke="hsl(280, 70%, 50%)"
+											strokeWidth={2}
+											fill="url(#netWorthGradient)"
 										/>
 									</AreaChart>
 								</ResponsiveContainer>
